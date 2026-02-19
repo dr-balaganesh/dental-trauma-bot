@@ -10,8 +10,8 @@ import os
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # URL da imagem do logo no repositório do GitHub
-logo_url = "https://github.com/cristianomaraujo/dentalaid/blob/main/Capa.jpg?raw=true"
-logo_url3 = "https://github.com/cristianomaraujo/dentalaid/blob/main/Capa 2.jpg?raw=true"
+logo_url = "ChatGPT Image Feb 19, 2026, 08_04_50 PM.png"
+logo_url3 = "ChatGPT Image Feb 19, 2026, 08_04_50 PM.png"
 
 # Exibindo a imagem de logo
 st.sidebar.image(logo_url3, use_column_width=True)
