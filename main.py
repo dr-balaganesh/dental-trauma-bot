@@ -91,7 +91,7 @@ html, body, [class*="css"] {
 # LOGO
 # =========================================
 
-logo_url = "ChatGPT Image Feb 19, 2026, 08_04_50 PM.png"
+logo_url = "https://github.com/dr-balaganesh/dental-trauma-bot/blob/main/ChatGPT%20Image%20Feb%2019%2C%202026%2C%2008_04_50%20PM.png"
 
 st.markdown(
     f"""
