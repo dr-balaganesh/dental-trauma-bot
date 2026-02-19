@@ -92,8 +92,6 @@ html, body, [class*="css"] {
 # =========================================
 
 logo_url = "ChatGPT Image Feb 19, 2026, 08_04_50 PM.png"
-st.image(logo_url, use_column_width=True)
-
 st.markdown(
     f"""
     <div style="text-align:center;">
