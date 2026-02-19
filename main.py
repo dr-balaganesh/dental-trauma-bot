@@ -1,35 +1,119 @@
 import streamlit as st
 from openai import OpenAI
-from streamlit_chat import message as msg
 import os
+import time
 
-# ==============================
-# OPENAI KEY
-# ==============================
+# =========================================
+# PAGE CONFIG
+# =========================================
+
+st.set_page_config(page_title="DentalTraumaBot", page_icon="🦷", layout="wide")
+
+# =========================================
+# OPENAI CLIENT
+# =========================================
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# URL da imagem do logo no repositório do GitHub
-logo_url = "ChatGPT Image Feb 19, 2026, 08_04_50 PM.png"
-logo_url3 = "ChatGPT Image Feb 19, 2026, 08_04_50 PM.png"
+# =========================================
+# CHATGPT STYLE CSS
+# =========================================
 
-# Exibindo a imagem de logo
-st.sidebar.image(logo_url3, use_column_width=True)
+st.markdown("""
+<style>
+
+html, body, [class*="css"] {
+    background-color: #0f172a;
+    color: white;
+}
+
+.chat-container {
+    max-width: 900px;
+    margin: auto;
+}
+
+.user-bubble {
+    background-color: #2563eb;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 18px;
+    margin: 10px 0;
+    width: fit-content;
+    max-width: 75%;
+    margin-left: auto;
+    font-size: 15px;
+}
+
+.bot-bubble {
+    background-color: #1e293b;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 18px;
+    margin: 10px 0;
+    width: fit-content;
+    max-width: 75%;
+    font-size: 15px;
+}
+
+.emergency-bubble {
+    background-color: #7f1d1d;
+    color: white;
+    padding: 14px 18px;
+    border-radius: 18px;
+    margin: 10px 0;
+    max-width: 75%;
+    font-size: 16px;
+    border: 2px solid red;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.row {
+    display: flex;
+    align-items: flex-start;
+}
+
+.thinking {
+    font-style: italic;
+    color: #9ca3af;
+    margin-left: 10px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# =========================================
+# LOGO
+# =========================================
+
+logo_url = "ChatGPT Image Feb 19, 2026, 08_04_50 PM.png"
 st.image(logo_url, use_column_width=True)
 
-abertura = st.write(
-"Hello! I am an AI-powered chatbot here to assist you with the guidance and management of dental trauma."
-)
+st.markdown("""
+<h2 style='text-align:center;'>DentalTraumaBot</h2>
+<p style='text-align:center;color:gray;'>
+AI assistant for dental injury guidance
+</p>
+""", unsafe_allow_html=True)
 
-st.sidebar.title("References")
+# =========================================
+# AVATARS
+# =========================================
 
-text_input_center = st.chat_input("Chat with me by typing in the field below")
+bot_icon = "https://cdn-icons-png.flaticon.com/512/4712/4712035.png"
+user_icon = "https://cdn-icons-png.flaticon.com/512/847/847969.png"
 
-# ==============================
-# YOUR ORIGINAL PROMPT (UNCHANGED)
-# ==============================
+# =========================================
+# SYSTEM PROMPT
+# =========================================
 
-condicoes = """ You are a virtual assistant called DentalTraumaBot.
+condicoes = """ 
+ You are a virtual assistant called DentalTraumaBot.
 
 Your goal is to educate and guide patients who have experienced dental trauma and help them understand the urgency of their condition.
 
@@ -108,53 +192,78 @@ Baby teeth:
 End every interaction by asking:
 “Would you like tips on how to care for the tooth until you see a dentist?”
 
-
 """
 
-# ==============================
-# CHAT MEMORY
-# ==============================
+# =========================================
+# SESSION MEMORY
+# =========================================
 
-if 'hst_conversa' not in st.session_state:
-    st.session_state.hst_conversa = [{"role": "system", "content": condicoes}]
+if "messages" not in st.session_state:
+    st.session_state.messages = [{"role": "system", "content": condicoes}]
 
-# ==============================
-# CHAT FUNCTION
-# ==============================
+# =========================================
+# GPT CALL WITH THINKING INDICATOR
+# =========================================
 
 def call_openai(messages):
-    response = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=messages,
-        max_tokens=900
-    )
+    with st.spinner("DentalTraumaBot is thinking..."):
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=messages,
+            max_tokens=800
+        )
     return response.choices[0].message.content
 
-# ==============================
-# USER INPUT
-# ==============================
+# =========================================
+# CHAT INPUT
+# =========================================
 
-if text_input_center:
-    st.session_state.hst_conversa.append(
-        {"role": "user", "content": text_input_center}
-    )
+user_input = st.chat_input("Describe what happened to the tooth...")
 
-    resposta = call_openai(st.session_state.hst_conversa)
+if user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
 
-    st.session_state.hst_conversa.append(
-        {"role": "assistant", "content": resposta}
-    )
+    reply = call_openai(st.session_state.messages)
 
-# ==============================
-# RENDER CHAT
-# ==============================
+    st.session_state.messages.append({"role": "assistant", "content": reply})
 
-def render_chat(hst_conversa):
-    for i in range(1, len(hst_conversa)):
-        if i % 2 == 0:
-            msg("**DentalTraumaBot**:" + hst_conversa[i]['content'], key=f"bot_msg_{i}")
+# =========================================
+# CHAT RENDER
+# =========================================
+
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+
+for msg in st.session_state.messages[1:]:
+    content = msg["content"]
+
+    if msg["role"] == "assistant":
+
+        # EMERGENCY highlight detection
+        if "EMERGENCY" in content.upper():
+            bubble_class = "emergency-bubble"
         else:
-            msg("**You**:" + hst_conversa[i]['content'], is_user=True, key=f"user_msg_{i}")
+            bubble_class = "bot-bubble"
 
-if len(st.session_state.hst_conversa) > 1:
-    render_chat(st.session_state.hst_conversa)
+        # typing animation
+        placeholder = st.empty()
+        typed_text = ""
+
+        for char in content:
+            typed_text += char
+            placeholder.markdown(f"""
+            <div class="row">
+                <img src="{bot_icon}" class="avatar">
+                <div class="{bubble_class}">{typed_text}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            time.sleep(0.002)
+
+    else:
+        st.markdown(f"""
+        <div class="row" style="justify-content:flex-end">
+            <div class="user-bubble">{content}</div>
+            <img src="{user_icon}" class="avatar">
+        </div>
+        """, unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
