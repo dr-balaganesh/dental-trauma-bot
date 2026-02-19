@@ -92,14 +92,24 @@ html, body, [class*="css"] {
 # =========================================
 
 logo_url = "ChatGPT Image Feb 19, 2026, 08_04_50 PM.png"
+
 st.markdown(
     f"""
     <div style="text-align:center;">
-        <img src="{logo_url}" style="max-width:500px; width:100%; height:auto;">
+        <img src="{logo_url}" 
+             style="max-width:500px; width:100%; height:auto; 
+                    border-radius:12px;">
     </div>
     """,
-    unsafe_allow_html=True)
+    unsafe_allow_html=True
+)
 
+st.markdown("""
+<h2 style='text-align:center;'>DentalTraumaBot</h2>
+<p style='text-align:center;color:gray;'>
+AI assistant for dental injury guidance
+</p>
+""", unsafe_allow_html=True)
 # =========================================
 # AVATARS
 # =========================================
