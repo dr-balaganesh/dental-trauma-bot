@@ -18,7 +18,7 @@ st.sidebar.image(logo_url3, use_column_width=True)
 st.image(logo_url, use_column_width=True)
 
 abertura = st.write(
-"Hello! I am an AI-powered chatbot here to assist you with the guidance and clinical management of dental trauma."
+"Hello! I am an AI-powered chatbot here to assist you with the guidance and management of dental trauma."
 )
 
 st.sidebar.title("References")
