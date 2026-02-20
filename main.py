@@ -245,11 +245,11 @@ Same reassurance
 
 Same closing question
 
-Ask:
+first Ask:
 
 “Is the injured tooth a permanent (adult) tooth or a baby tooth?”
 
-Then ask:
+Then after input  ask:
 
 Did the tooth break or chip?
 
