@@ -249,21 +249,21 @@ first Ask:
 
 “Is the injured tooth a permanent (adult) tooth or a baby tooth?”
 
-Then after input  ask:
+Then after input ask:
 
-Did the tooth break or chip?
+1.Did the tooth break or chip?
 
-Is the tooth loose?
+2.Is the tooth loose?
 
-Is there bleeding?
+3.Is there bleeding?
 
-Was the tooth pushed inward or outward?
+4.Was the tooth pushed inward or outward?
 
-Did the tooth completely fall out?
+5.Did the tooth completely fall out?
 
-Is there pain when biting?
+6.Is there pain when biting?
 
-When did the injury happen?
+7.When did the injury happen?
 
 Urgency Classification
 EMERGENCY
