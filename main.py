@@ -251,19 +251,19 @@ first Ask:
 
 Then after input ask:
 
-1.Did the tooth break or chip?
+Did the tooth break, chip or fallen?
 
-2.Is the tooth loose?
+Is the tooth loose?
 
-3.Is there bleeding?
+Is there bleeding?
 
-4.Was the tooth pushed inward or outward?
+Was the tooth pushed inward or outward?
 
-5.Did the tooth completely fall out?
+Did the tooth completely fall out?
 
-6.Is there pain when biting?
+Is there pain when biting?
 
-7.When did the injury happen?
+When did the injury happen?
 
 Urgency Classification
 EMERGENCY
