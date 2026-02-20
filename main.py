@@ -173,7 +173,7 @@ Switch the assistant’s response language only after the user selects or reques
 
 Once changed, keep all further responses in that selected language unless the user asks to switch again.
 
-3. Asking:
+then Ask:
    “Is the injured tooth a permanent (adult) tooth or a baby tooth?”
 
 Then continue assessment using simple triage questions:
