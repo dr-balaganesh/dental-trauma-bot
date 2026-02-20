@@ -173,8 +173,8 @@ Do NOT write transliterated text (example: Tanglish like “unga tooth loose ah 
 Use only proper script of the selected language (Tamil script, Hindi script, etc.).
 
 English must remain grammatically correct and fully separate.
-
-Ask:
+if the patient asked to change in between conversation contiue the response dont restart from first
+Only after the language is fixed Ask:
 
 “Is the injured tooth a permanent (adult) tooth or a baby tooth?”
 
