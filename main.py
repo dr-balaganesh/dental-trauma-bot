@@ -2,6 +2,8 @@
 import streamlit as st
 from openai import OpenAI
 import os
+import time
+import re
 
 # ============================================================
 # PAGE CONFIG
@@ -84,15 +86,22 @@ LANGUAGES = {
 }
 
 # ============================================================
-# YOUTUBE VIDEO LIBRARY
+# VIDEO LIBRARY
 # ============================================================
+#
+# IMPORTANT:
+# Videos are selected by the application, NOT by GPT.
+#
+# Tamil -> Tamil video
+# All other languages -> English video
+#
 
 VIDEO_LIBRARY = {
 
-    # ========================================================
+    # --------------------------------------------------------
     # AVULSION
-    # Completely knocked-out tooth
-    # ========================================================
+    # Tooth completely knocked out
+    # --------------------------------------------------------
 
     "avulsion": {
         "ta": {
@@ -106,9 +115,10 @@ VIDEO_LIBRARY = {
         }
     },
 
-    # ========================================================
+    # --------------------------------------------------------
     # INTRUSION / EXTRUSION
-    # ========================================================
+    # Tooth pushed inward or outward
+    # --------------------------------------------------------
 
     "intrusion_extrusion": {
         "ta": {
@@ -122,19 +132,19 @@ VIDEO_LIBRARY = {
         }
     },
 
-    # ========================================================
+    # --------------------------------------------------------
     # CONCUSSION / SUBLUXATION / LATERAL LUXATION
-    # ========================================================
+    # --------------------------------------------------------
 
     "concussion_subluxation_lateral": {
         "ta": {
             "url": "https://www.youtube.com/watch?v=Sr9-eXlC56o",
-            "title": "பல் அடிபட்டால் என்ன செய்ய வேண்டும்?"
+            "title": "பல் அடிபட்டால் — அசையாத பல், அசையும் பல் அல்லது பக்கமாக நகர்ந்த பல்"
         },
 
         "default": {
             "url": "https://www.youtube.com/watch?v=W2pQTN2sLz4",
-            "title": "Dental trauma: concussion, subluxation and lateral luxation"
+            "title": "Dental trauma — concussion, subluxation and lateral luxation"
         }
     }
 }
@@ -161,53 +171,223 @@ st.markdown(
     """
 <style>
 
-/* ==========================================================
-   GLOBAL
-========================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
 
 .stApp {
-
     background:
         radial-gradient(
-            circle at 50% -10%,
+            circle at top,
             #172554 0%,
-            #0f172a 38%,
+            #0f172a 35%,
             #020617 100%
         );
-
     color: #f8fafc;
 }
 
+/* Remove excessive top spacing */
+
 .block-container {
-
     max-width: 900px;
-
     padding-top: 2rem;
-
     padding-bottom: 7rem;
 }
 
-/* ==========================================================
+/* ---------------------------------------------------------
    HEADER
-========================================================== */
+--------------------------------------------------------- */
 
 .app-header {
-
     text-align: center;
-
-    padding:
-        10px 0 25px 0;
+    padding: 10px 0 25px 0;
 }
 
 .logo-circle {
-
-    width: 78px;
-
-    height: 78px;
-
+    width: 76px;
+    height: 76px;
     margin: auto;
+    border-radius: 24px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #2563eb,
+            #06b6d4
+        );
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 42px;
+
+    box-shadow:
+        0 15px 40px rgba(37, 99, 235, 0.35);
+}
+
+.app-title {
+    font-size: 34px;
+    font-weight: 700;
+    margin-top: 15px;
+    letter-spacing: -1px;
+}
+
+.app-subtitle {
+    color: #94a3b8;
+    font-size: 15px;
+    margin-top: 5px;
+}
+
+/* ---------------------------------------------------------
+   LANGUAGE CARD
+--------------------------------------------------------- */
+
+.language-card {
+    background: rgba(15, 23, 42, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.15);
 
     border-radius: 24px;
+
+    padding: 28px;
+
+    margin: 20px 0;
+
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.language-title {
+    text-align: center;
+    font-size: 21px;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.language-subtitle {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+/* ---------------------------------------------------------
+   BUTTONS
+--------------------------------------------------------- */
+
+div.stButton > button {
+
+    width: 100%;
+
+    min-height: 54px;
+
+    border-radius: 14px;
+
+    border: 1px solid rgba(148, 163, 184, 0.18);
+
+    background:
+        rgba(30, 41, 59, 0.8);
+
+    color: #f8fafc;
+
+    font-size: 15px;
+
+    font-weight: 500;
+
+    transition:
+        all 0.2s ease;
+
+}
+
+div.stButton > button:hover {
+
+    border-color: #3b82f6;
+
+    background:
+        rgba(37, 99, 235, 0.18);
+
+    transform: translateY(-1px);
+
+}
+
+/* ---------------------------------------------------------
+   CHAT
+--------------------------------------------------------- */
+
+.chat-wrapper {
+    margin-top: 20px;
+}
+
+.message-user {
+    display: flex;
+    justify-content: flex-end;
+    margin: 16px 0;
+}
+
+.message-assistant {
+    display: flex;
+    justify-content: flex-start;
+    margin: 16px 0;
+}
+
+.user-bubble {
+
+    max-width: 75%;
+
+    padding: 13px 17px;
+
+    border-radius:
+        20px 20px 5px 20px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #2563eb,
+            #1d4ed8
+        );
+
+    color: white;
+
+    font-size: 15px;
+
+    line-height: 1.55;
+
+    box-shadow:
+        0 8px 25px rgba(37, 99, 235, 0.20);
+
+}
+
+.bot-bubble {
+
+    max-width: 78%;
+
+    padding: 16px 18px;
+
+    border-radius:
+        20px 20px 20px 5px;
+
+    background:
+        rgba(30, 41, 59, 0.88);
+
+    border:
+        1px solid rgba(148, 163, 184, 0.12);
+
+    color: #e2e8f0;
+
+    font-size: 15px;
+
+    line-height: 1.65;
+
+}
+
+.bot-avatar {
+
+    width: 38px;
+    height: 38px;
+
+    border-radius: 50%;
 
     background:
         linear-gradient(
@@ -222,146 +402,81 @@ st.markdown(
 
     justify-content: center;
 
-    font-size: 42px;
+    margin-right: 10px;
 
-    box-shadow:
-        0 15px 45px
-        rgba(37, 99, 235, 0.35);
-}
-
-.app-title {
-
-    font-size: 34px;
-
-    font-weight: 700;
-
-    margin-top: 15px;
-
-    letter-spacing: -1px;
-}
-
-.app-subtitle {
-
-    color: #94a3b8;
-
-    font-size: 15px;
-
-    margin-top: 5px;
-}
-
-/* ==========================================================
-   LANGUAGE CARD
-========================================================== */
-
-.language-card {
-
-    background:
-        rgba(15, 23, 42, 0.85);
-
-    border:
-        1px solid rgba(148, 163, 184, 0.15);
-
-    border-radius: 24px;
-
-    padding: 28px;
-
-    margin: 15px 0 25px 0;
-
-    box-shadow:
-        0 20px 60px
-        rgba(0, 0, 0, 0.25);
-}
-
-.language-title {
-
-    text-align: center;
+    flex-shrink: 0;
 
     font-size: 21px;
 
-    font-weight: 600;
-
-    margin-bottom: 5px;
 }
 
-.language-subtitle {
+/* ---------------------------------------------------------
+   URGENCY CARDS
+--------------------------------------------------------- */
 
-    text-align: center;
+.urgency-emergency {
 
-    color: #94a3b8;
-
-    font-size: 14px;
-
-    margin-bottom: 22px;
-}
-
-/* ==========================================================
-   LANGUAGE BUTTONS
-========================================================== */
-
-div.stButton > button {
-
-    width: 100%;
-
-    min-height: 52px;
-
-    border-radius: 14px;
+    background:
+        linear-gradient(
+            135deg,
+            rgba(127, 29, 29, 0.95),
+            rgba(69, 10, 10, 0.95)
+        );
 
     border:
-        1px solid rgba(148, 163, 184, 0.18);
+        1px solid rgba(248, 113, 113, 0.5);
 
-    background:
-        rgba(30, 41, 59, 0.75);
+    border-radius: 18px;
 
-    color: #f8fafc;
+    padding: 18px;
 
-    font-size: 15px;
+    margin: 18px 0;
 
-    font-weight: 500;
-
-    transition:
-        all 0.2s ease;
 }
 
-div.stButton > button:hover {
-
-    border-color: #3b82f6;
+.urgency-urgent {
 
     background:
-        rgba(37, 99, 235, 0.18);
-
-    transform:
-        translateY(-1px);
-}
-
-/* ==========================================================
-   LANGUAGE INDICATOR
-========================================================== */
-
-.language-indicator {
-
-    display: inline-block;
-
-    background:
-        rgba(30, 41, 59, 0.8);
+        linear-gradient(
+            135deg,
+            rgba(120, 53, 15, 0.95),
+            rgba(67, 20, 7, 0.95)
+        );
 
     border:
-        1px solid rgba(148, 163, 184, 0.15);
+        1px solid rgba(251, 191, 36, 0.4);
 
-    padding:
-        7px 12px;
+    border-radius: 18px;
 
-    border-radius: 12px;
+    padding: 18px;
 
-    color: #cbd5e1;
+    margin: 18px 0;
 
-    font-size: 13px;
-
-    margin-bottom: 15px;
 }
 
-/* ==========================================================
+.urgency-nonurgent {
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(20, 83, 45, 0.95),
+            rgba(5, 46, 22, 0.95)
+        );
+
+    border:
+        1px solid rgba(74, 222, 128, 0.35);
+
+    border-radius: 18px;
+
+    padding: 18px;
+
+    margin: 18px 0;
+
+}
+
+/* ---------------------------------------------------------
    VIDEO CARD
-========================================================== */
+--------------------------------------------------------- */
 
 .video-card {
 
@@ -375,12 +490,8 @@ div.stButton > button:hover {
 
     padding: 20px;
 
-    margin:
-        25px 0 10px 0;
+    margin: 25px 0;
 
-    box-shadow:
-        0 15px 45px
-        rgba(0, 0, 0, 0.20);
 }
 
 .video-title {
@@ -389,9 +500,8 @@ div.stButton > button:hover {
 
     font-weight: 600;
 
-    color: #f8fafc;
-
     margin-bottom: 5px;
+
 }
 
 .video-subtitle {
@@ -401,128 +511,12 @@ div.stButton > button:hover {
     font-size: 13px;
 
     margin-bottom: 15px;
+
 }
 
-/* ==========================================================
-   URGENCY
-========================================================== */
-
-.urgency-emergency {
-
-    background:
-        rgba(127, 29, 29, 0.35);
-
-    border:
-        1px solid rgba(248, 113, 113, 0.45);
-
-    border-radius: 18px;
-
-    padding: 16px;
-
-    margin: 15px 0;
-
-    color: #fecaca;
-}
-
-.urgency-urgent {
-
-    background:
-        rgba(120, 53, 15, 0.35);
-
-    border:
-        1px solid rgba(251, 191, 36, 0.4);
-
-    border-radius: 18px;
-
-    padding: 16px;
-
-    margin: 15px 0;
-
-    color: #fde68a;
-}
-
-.urgency-nonurgent {
-
-    background:
-        rgba(20, 83, 45, 0.35);
-
-    border:
-        1px solid rgba(74, 222, 128, 0.35);
-
-    border-radius: 18px;
-
-    padding: 16px;
-
-    margin: 15px 0;
-
-    color: #bbf7d0;
-}
-
-/* ==========================================================
-   CHAT
-========================================================== */
-
-[data-testid="stChatMessage"] {
-
-    background:
-        transparent;
-
-    border:
-        none;
-}
-
-/* Assistant message */
-
-[data-testid="stChatMessage"]:has(
-    [data-testid="chatAvatarIcon-assistant"]
-) {
-
-    background:
-        rgba(30, 41, 59, 0.65);
-
-    border:
-        1px solid rgba(148, 163, 184, 0.10);
-
-    border-radius: 20px;
-
-    padding: 4px 8px;
-
-    margin:
-        12px 0;
-}
-
-/* User message */
-
-[data-testid="stChatMessage"]:has(
-    [data-testid="chatAvatarIcon-user"]
-) {
-
-    background:
-        rgba(37, 99, 235, 0.16);
-
-    border:
-        1px solid rgba(59, 130, 246, 0.12);
-
-    border-radius: 20px;
-
-    padding: 4px 8px;
-
-    margin:
-        12px 0;
-}
-
-/* ==========================================================
-   CHAT INPUT
-========================================================== */
-
-[data-testid="stChatInput"] {
-
-    border-radius: 18px;
-}
-
-/* ==========================================================
+/* ---------------------------------------------------------
    DISCLAIMER
-========================================================== */
+--------------------------------------------------------- */
 
 .disclaimer {
 
@@ -537,7 +531,7 @@ div.stButton > button:hover {
     z-index: 999;
 
     background:
-        rgba(2, 6, 23, 0.97);
+        rgba(2, 6, 23, 0.96);
 
     backdrop-filter:
         blur(15px);
@@ -553,54 +547,28 @@ div.stButton > button:hover {
     color: #94a3b8;
 
     font-size: 12px;
+
 }
 
 .disclaimer strong {
-
     color: #fbbf24;
 }
 
-/* ==========================================================
-   MOBILE
-========================================================== */
+/* ---------------------------------------------------------
+   CHAT INPUT
+--------------------------------------------------------- */
 
-@media (max-width: 600px) {
+.stChatInputContainer {
 
-    .block-container {
+    background:
+        rgba(15, 23, 42, 0.95);
 
-        padding-left: 1rem;
-
-        padding-right: 1rem;
-    }
-
-    .app-title {
-
-        font-size: 28px;
-    }
-
-    .logo-circle {
-
-        width: 68px;
-
-        height: 68px;
-
-        font-size: 36px;
-    }
-
-    .disclaimer {
-
-        font-size: 10px;
-
-        padding:
-            9px 10px;
-    }
 }
 
 </style>
 """,
     unsafe_allow_html=True
 )
-
 
 # ============================================================
 # SESSION STATE
@@ -627,143 +595,101 @@ if "urgency" not in st.session_state:
 # ============================================================
 
 SYSTEM_PROMPT = """
-You are DentalTraumaBot.
-
-You are a dental trauma education and triage assistant.
+You are DentalTraumaBot, a dental trauma education and triage assistant.
 
 Your purpose is to help the general public understand what to do after a dental injury.
 
-You must use simple, clear, non-technical language.
+IMPORTANT:
 
-IMPORTANT SAFETY RULES:
-
-You are not a dentist.
+You are NOT a dentist.
 
 Do not provide a definitive diagnosis.
 
 Do not provide medication names or dosages.
 
-Do not give false reassurance.
+Do not discuss topics unrelated to dental trauma.
 
-When red-flag symptoms are present, clearly emphasize the need for urgent dental care.
-
-The application displays the medical disclaimer separately.
-DO NOT include a medical disclaimer in your response.
-
-TOPIC RESTRICTION:
-
-Only answer questions related to dental trauma.
-
-If the user asks about an unrelated topic, respond:
+For unrelated questions say:
 
 "I'm sorry, I'm only trained to help with dental injuries and trauma. Please consult a relevant professional."
 
+The application handles the medical disclaimer separately.
+DO NOT write the disclaimer in your responses.
+
 LANGUAGE:
 
-The user's selected language will be provided separately.
+The user-selected language will be provided to you.
 
-Respond in the selected language.
+Respond primarily in that language.
 
 If the selected language is not English, provide:
 
 1. The complete response in the selected language.
-2. The complete English equivalent.
+2. A complete English version.
 
-Do not mix languages in sentences.
+Do not mix languages within sentences.
 
 Do not use transliteration.
 
-Do not ask the user to select their language again.
+TRIAGE:
 
-Do not repeat the introduction after the initial response.
+Possible emergency situations:
 
-ASSESSMENT:
-
-Important dental trauma categories include:
-
-CONCUSSION:
-The tooth has been hit but is not mobile and has not been displaced.
-
-SUBLUXATION:
-The tooth is mobile but has not been displaced.
-
-LATERAL LUXATION:
-The tooth has been displaced sideways.
-
-INTRUSION:
-The tooth has been pushed inward into the socket.
-
-EXTRUSION:
-The tooth has been partially pushed outward from the socket.
-
-AVULSION:
-The tooth has completely fallen out.
-
-URGENCY:
-
-EMERGENCY:
 - Completely knocked-out permanent tooth
-- Intrusion
-- Extrusion
+- Tooth pushed inward
+- Tooth pushed outward
 - Heavy bleeding
 - Severe pain
 - Suspected jaw injury
 
-URGENT:
+Urgent situations:
+
 - Tooth fracture with sensitivity
-- Subluxation / loose tooth
-- Lateral luxation
+- Loose tooth
 - Mild bleeding
 - Pain when biting
-- Concussion after significant trauma
 
-NON-URGENT:
+Non-urgent situations:
+
 - Small enamel chip
 - No pain
 - No mobility
-- No displacement
 
-AVULSED PERMANENT TOOTH:
+Always explain:
 
-Explain:
+1. What may have happened
+2. What to do immediately
+3. What NOT to do
+4. How urgently to see a dentist
+5. Reassurance
+
+EMERGENCY:
+
+Tell the patient to seek dental care immediately.
+
+For an avulsed permanent tooth:
 
 - Hold the tooth by the crown.
 - Do not touch the root.
-- If dirty, rinse gently.
-- Do not scrub the root.
-- If appropriate, keep it in milk or inside the cheek.
+- Rinse gently if dirty.
+- If possible, place it in milk or inside the cheek.
 - Seek dental care immediately.
 - The sooner treatment begins, the better the chance of saving the tooth.
 
-BABY TOOTH:
+BABY TEETH:
 
 Never attempt to reinsert a baby tooth.
 
 Tell the patient to contact a dentist.
 
-RESPONSE STRUCTURE:
-
-When appropriate, organize the response into:
-
-What may have happened
-
-What to do now
-
-What NOT to do
-
-When to see a dentist
-
-Reassurance
-
-Do not make responses unnecessarily long.
+Do not make the response unnecessarily long.
 
 End every response with:
 
 "Would you like tips on how to care for the tooth until you see a dentist?"
 
-Do not mention the YouTube videos.
-
-The application selects the appropriate educational video separately.
+Do not mention videos.
+The application selects videos separately.
 """
 
 
@@ -773,65 +699,64 @@ The application selects the appropriate educational video separately.
 
 st.markdown(
     """
-    <div class="app-header">
+<div class="app-header">
 
-        <div class="logo-circle">
-            🦷
-        </div>
-
-        <div class="app-title">
-            DentalTraumaBot
-        </div>
-
-        <div class="app-subtitle">
-            AI-assisted guidance after dental injuries
-        </div>
-
+    <div class="logo-circle">
+        🦷
     </div>
-    """,
+
+    <div class="app-title">
+        DentalTraumaBot
+    </div>
+
+    <div class="app-subtitle">
+        AI-assisted guidance after dental injuries
+    </div>
+
+</div>
+""",
     unsafe_allow_html=True
 )
 
 
 # ============================================================
-# LANGUAGE SELECTION SCREEN
+# LANGUAGE SELECTION
 # ============================================================
 
 if st.session_state.language is None:
 
     st.markdown(
         """
-        <div class="language-card">
+<div class="language-card">
 
-            <div class="language-title">
-                🌐 Choose your language
-            </div>
+<div class="language-title">
+🌐 Choose your language
+</div>
 
-            <div class="language-subtitle">
-                Select the language you would like to continue in
-            </div>
+<div class="language-subtitle">
+Select the language you would like to use
+</div>
 
-        </div>
-        """,
+</div>
+""",
         unsafe_allow_html=True
     )
 
     language_names = list(LANGUAGES.keys())
 
-    # Two-column language buttons
-
-    for row in range(0, len(language_names), 2):
+    # 2 columns
+    for row_start in range(0, len(language_names), 2):
 
         cols = st.columns(2)
 
-        for i, col in enumerate(cols):
+        for index, col in enumerate(cols):
 
-            index = row + i
+            position = row_start + index
 
-            if index >= len(language_names):
+            if position >= len(language_names):
                 continue
 
-            language = language_names[index]
+            language = language_names[position]
 
             info = LANGUAGES[language]
 
@@ -839,34 +764,26 @@ if st.session_state.language is None:
 
                 if st.button(
                     f"{info['flag']}  {info['native']}",
-                    key=f"language_button_{info['code']}",
+                    key=f"language_{info['code']}",
                     use_container_width=True
                 ):
 
                     st.session_state.language = language
-
                     st.session_state.language_code = info["code"]
 
                     st.session_state.messages = []
 
-                    st.session_state.scenario = None
-
-                    st.session_state.urgency = None
-
                     st.rerun()
 
-    # Footer
-
+    # Footer disclaimer
     st.markdown(
         """
-        <div class="disclaimer">
-
-            ⚠️ <strong>Medical disclaimer:</strong>
-            This tool does not replace a dentist.
-            A professional dental evaluation is necessary.
-
-        </div>
-        """,
+<div class="disclaimer">
+⚠️ <strong>Medical disclaimer:</strong>
+This tool does not replace a dentist.
+A professional dental evaluation is necessary.
+</div>
+""",
         unsafe_allow_html=True
     )
 
@@ -874,7 +791,7 @@ if st.session_state.language is None:
 
 
 # ============================================================
-# LANGUAGE INDICATOR
+# LANGUAGE HEADER
 # ============================================================
 
 selected_language = st.session_state.language
@@ -885,10 +802,14 @@ with col1:
 
     st.markdown(
         f"""
-        <div class="language-indicator">
-
-            🌐 {LANGUAGES[selected_language]['native']}
-
+        <div style="
+            color:#94a3b8;
+            font-size:13px;
+            margin-bottom:10px;
+        ">
+        🌐 Language: <strong style="color:#f8fafc;">
+        {LANGUAGES[selected_language]['native']}
+        </strong>
         </div>
         """,
         unsafe_allow_html=True
@@ -896,76 +817,209 @@ with col1:
 
 with col2:
 
-    if st.button(
-        "↻",
-        help="Start a new conversation"
-    ):
+    if st.button("↻", help="Start over"):
 
         st.session_state.language = None
-
         st.session_state.language_code = None
-
         st.session_state.messages = []
-
         st.session_state.scenario = None
-
         st.session_state.urgency = None
 
         st.rerun()
 
 
 # ============================================================
-# INITIAL QUESTION
+# FIRST QUESTION
 # ============================================================
 
-if len(st.session_state.messages) == 0:
+if not st.session_state.messages:
 
-    initial_message = (
-        "Hello! I'm DentalTraumaBot 🦷\n\n"
-        "I can help you understand what to do after a dental injury.\n\n"
-        "Is the injured tooth a **permanent (adult) tooth** "
-        "or a **baby tooth**?"
-    )
+    first_question = {
+        "role": "assistant",
+        "content": (
+            "Hello! I'm DentalTraumaBot 🦷\n\n"
+            "I can help you understand what to do after a dental injury.\n\n"
+            "Is the injured tooth a **permanent (adult) tooth** or a **baby tooth**?"
+        )
+    }
 
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "content": initial_message
-        }
-    )
+    st.session_state.messages.append(first_question)
 
 
 # ============================================================
-# DISPLAY CHAT HISTORY
+# SCENARIO DETECTION
 # ============================================================
 
-for message in st.session_state.messages:
+def detect_scenario(text):
 
-    if message["role"] == "assistant":
+    text_lower = text.lower()
 
-        with st.chat_message(
-            "assistant",
-            avatar="🦷"
-        ):
+    # --------------------------------------------------------
+    # AVULSION
+    # --------------------------------------------------------
 
-            st.markdown(
-                message["content"]
-            )
+    avulsion_words = [
+        "fallen out",
+        "fell out",
+        "knocked out",
+        "completely out",
+        "came out",
+        "lost the tooth",
+        "tooth is out",
+        "tooth fell"
+    ]
 
-    elif message["role"] == "user":
+    if any(word in text_lower for word in avulsion_words):
 
-        with st.chat_message(
-            "user",
-            avatar="👤"
-        ):
+        return "avulsion", "EMERGENCY"
 
-            st.markdown(
-                message["content"]
-            )
+    # --------------------------------------------------------
+    # INTRUSION / EXTRUSION
+    # --------------------------------------------------------
+
+    intrusion_words = [
+        "pushed inward",
+        "pushed inside",
+        "went inside",
+        "intruded",
+        "intrusion",
+        "tooth is inside",
+        "tooth pushed in"
+    ]
+
+    extrusion_words = [
+        "pushed outward",
+        "pushed out",
+        "coming out",
+        "extruded",
+        "extrusion",
+        "tooth is sticking out"
+    ]
+
+    if any(word in text_lower for word in intrusion_words + extrusion_words):
+
+        return "intrusion_extrusion", "EMERGENCY"
+
+    # --------------------------------------------------------
+    # LATERAL LUXATION
+    # --------------------------------------------------------
+
+    lateral_words = [
+        "sideways",
+        "side way",
+        "moved sideways",
+        "pushed sideways",
+        "tooth moved to the side",
+        "tooth is sideways"
+    ]
+
+    if any(word in text_lower for word in lateral_words):
+
+        return "concussion_subluxation_lateral", "URGENT"
+
+    # --------------------------------------------------------
+    # SUBLUXATION
+    # --------------------------------------------------------
+
+    mobile_words = [
+        "loose",
+        "mobile",
+        "moving",
+        "moves",
+        "shaking",
+        "wobbly",
+        "wobbles"
+    ]
+
+    if any(word in text_lower for word in mobile_words):
+
+        return "concussion_subluxation_lateral", "URGENT"
+
+    # --------------------------------------------------------
+    # CONCUSSION
+    # --------------------------------------------------------
+
+    concussion_words = [
+        "hit",
+        "hit the tooth",
+        "bumped",
+        "impact",
+        "injury",
+        "not mobile",
+        "not loose",
+        "doesn't move",
+        "does not move"
+    ]
+
+    if any(word in text_lower for word in concussion_words):
+
+        return "concussion_subluxation_lateral", "URGENT"
+
+    return None, None
 
 
 # ============================================================
-# VIDEO DISPLAY
+# DISPLAY CHAT
+# ============================================================
+
+for msg in st.session_state.messages:
+
+    if msg["role"] == "assistant":
+
+        content = msg["content"]
+
+        # Convert markdown-like bold to HTML
+        content_html = content.replace("**", "<strong>", 1)
+
+        # Better basic markdown handling
+        content_html = re.sub(
+            r"\*\*(.*?)\*\*",
+            r"<strong>\1</strong>",
+            content
+        )
+
+        content_html = content_html.replace(
+            "\n",
+            "<br>"
+        )
+
+        st.markdown(
+            f"""
+            <div class="message-assistant">
+
+                <div class="bot-avatar">
+                    🦷
+                </div>
+
+                <div class="bot-bubble">
+                    {content_html}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    elif msg["role"] == "user":
+
+        content = msg["content"].replace("\n", "<br>")
+
+        st.markdown(
+            f"""
+            <div class="message-user">
+
+                <div class="user-bubble">
+                    {content}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+
+# ============================================================
+# VIDEO
 # ============================================================
 
 if st.session_state.scenario:
@@ -978,7 +1032,7 @@ if st.session_state.scenario:
     if video:
 
         st.markdown(
-            f"""
+            """
             <div class="video-card">
 
                 <div class="video-title">
@@ -986,7 +1040,7 @@ if st.session_state.scenario:
                 </div>
 
                 <div class="video-subtitle">
-                    {video['title']}
+                    Watch this short video for guidance about this type of dental injury.
                 </div>
 
             </div>
@@ -1008,9 +1062,9 @@ user_input = st.chat_input(
 
 if user_input:
 
-    # ========================================================
-    # SAVE USER MESSAGE
-    # ========================================================
+    # --------------------------------------------------------
+    # ADD USER MESSAGE
+    # --------------------------------------------------------
 
     st.session_state.messages.append(
         {
@@ -1019,147 +1073,22 @@ if user_input:
         }
     )
 
-    # ========================================================
-    # BASIC SCENARIO DETECTION
-    # ========================================================
-
-    text = user_input.lower()
-
-    detected_scenario = None
-    detected_urgency = None
-
     # --------------------------------------------------------
-    # AVULSION
+    # DETECT SCENARIO
     # --------------------------------------------------------
 
-    if any(
-        phrase in text
-        for phrase in [
-            "fallen out",
-            "fell out",
-            "knocked out",
-            "completely out",
-            "came out",
-            "tooth is out",
-            "tooth fell"
-        ]
-    ):
+    scenario, urgency = detect_scenario(user_input)
 
-        detected_scenario = "avulsion"
+    if scenario:
 
-        detected_urgency = "EMERGENCY"
+        st.session_state.scenario = scenario
+        st.session_state.urgency = urgency
 
     # --------------------------------------------------------
-    # INTRUSION / EXTRUSION
+    # PREPARE GPT MESSAGES
     # --------------------------------------------------------
-
-    elif any(
-        phrase in text
-        for phrase in [
-            "pushed inward",
-            "pushed inside",
-            "went inside",
-            "intruded",
-            "intrusion",
-            "tooth pushed in",
-            "pushed outward",
-            "pushed out",
-            "extruded",
-            "extrusion",
-            "sticking out"
-        ]
-    ):
-
-        detected_scenario = "intrusion_extrusion"
-
-        detected_urgency = "EMERGENCY"
-
-    # --------------------------------------------------------
-    # LATERAL LUXATION
-    # --------------------------------------------------------
-
-    elif any(
-        phrase in text
-        for phrase in [
-            "sideways",
-            "side way",
-            "moved sideways",
-            "pushed sideways",
-            "moved to the side",
-            "tooth is sideways"
-        ]
-    ):
-
-        detected_scenario = (
-            "concussion_subluxation_lateral"
-        )
-
-        detected_urgency = "URGENT"
-
-    # --------------------------------------------------------
-    # SUBLUXATION
-    # --------------------------------------------------------
-
-    elif any(
-        phrase in text
-        for phrase in [
-            "loose",
-            "mobile",
-            "moving",
-            "moves",
-            "shaking",
-            "wobbly",
-            "wobbles"
-        ]
-    ):
-
-        detected_scenario = (
-            "concussion_subluxation_lateral"
-        )
-
-        detected_urgency = "URGENT"
-
-    # --------------------------------------------------------
-    # CONCUSSION
-    # --------------------------------------------------------
-
-    elif any(
-        phrase in text
-        for phrase in [
-            "hit the tooth",
-            "hit",
-            "bumped",
-            "impact",
-            "injury",
-            "not mobile",
-            "not loose",
-            "doesn't move",
-            "does not move"
-        ]
-    ):
-
-        detected_scenario = (
-            "concussion_subluxation_lateral"
-        )
-
-        detected_urgency = "URGENT"
-
-    # --------------------------------------------------------
-    # SAVE DETECTION
-    # --------------------------------------------------------
-
-    if detected_scenario:
-
-        st.session_state.scenario = detected_scenario
-
-        st.session_state.urgency = detected_urgency
-
-    # ========================================================
-    # BUILD OPENAI MESSAGE HISTORY
-    # ========================================================
 
     api_messages = [
-
         {
             "role": "system",
             "content": SYSTEM_PROMPT
@@ -1168,16 +1097,14 @@ if user_input:
         {
             "role": "system",
             "content": (
-                "The user selected language: "
+                f"The user's selected language is: "
                 f"{selected_language} "
                 f"({st.session_state.language_code})."
             )
         }
-
     ]
 
-    # Add conversation
-
+    # Add conversation history
     for message in st.session_state.messages:
 
         api_messages.append(
@@ -1187,15 +1114,13 @@ if user_input:
             }
         )
 
-    # ========================================================
-    # OPENAI REQUEST
-    # ========================================================
+    # --------------------------------------------------------
+    # GPT REQUEST
+    # --------------------------------------------------------
 
     try:
 
-        with st.spinner(
-            "DentalTraumaBot is thinking..."
-        ):
+        with st.spinner("DentalTraumaBot is thinking..."):
 
             response = client.chat.completions.create(
 
@@ -1210,20 +1135,18 @@ if user_input:
 
         reply = response.choices[0].message.content
 
-    except Exception as error:
-
-        st.error(
-            "Unable to connect to the AI service."
-        )
+    except Exception as e:
 
         reply = (
-            "I'm sorry, I couldn't process your request "
-            "right now. Please try again or contact a dentist."
+            "I'm sorry, I couldn't process that request right now. "
+            "Please try again or contact a dentist."
         )
 
-    # ========================================================
-    # SAVE ASSISTANT RESPONSE
-    # ========================================================
+        st.error(f"OpenAI error: {e}")
+
+    # --------------------------------------------------------
+    # SAVE RESPONSE
+    # --------------------------------------------------------
 
     st.session_state.messages.append(
         {
@@ -1232,27 +1155,27 @@ if user_input:
         }
     )
 
-    # ========================================================
-    # REFRESH
-    # ========================================================
+    # --------------------------------------------------------
+    # RERUN TO DISPLAY
+    # --------------------------------------------------------
 
     st.rerun()
 
 
 # ============================================================
-# FIXED DISCLAIMER
+# FIXED MEDICAL DISCLAIMER
 # ============================================================
 
 st.markdown(
     """
-    <div class="disclaimer">
+<div class="disclaimer">
 
-        ⚠️ <strong>Medical disclaimer:</strong>
-        This tool does not replace a dentist.
-        A professional dental evaluation is necessary.
+⚠️ <strong>Medical disclaimer:</strong>
+This tool does not replace a dentist.
+A professional dental evaluation is necessary.
 
-    </div>
-    """,
+</div>
+""",
     unsafe_allow_html=True
 )
 
