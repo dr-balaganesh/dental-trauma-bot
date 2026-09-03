@@ -843,7 +843,21 @@ if user_input:
     )
 
     # DETECT SCENARIO
-    scenario, urgency = detect_scenario(user_input)
+    #
+    # The new conversation flow asks several separate follow-up
+    # questions ("Is it loose?" -> "yes", "Was it pushed inward?" ->
+    # "no") instead of one open question answered in a single message.
+    # Scanning only the newest message misses trigger words that were
+    # given in an earlier turn, so the video never appeared. Scanning
+    # the full accumulated user conversation instead keeps detection
+    # working across multi-turn Q&A.
+    all_user_text = " ".join(
+        message["content"]
+        for message in st.session_state.messages
+        if message["role"] == "user"
+    )
+
+    scenario, urgency = detect_scenario(all_user_text)
 
     if scenario:
         st.session_state.scenario = scenario
