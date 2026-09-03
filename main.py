@@ -134,6 +134,51 @@ def get_video_for_scenario(scenario, language_code):
 
 
 # ============================================================
+# SCENARIO TAG PARSING
+# ============================================================
+#
+# GPT is instructed (see SYSTEM_PROMPT below) to append a hidden
+# [SCENARIO:value] tag to the end of every response. This is what
+# selects the video — it replaces scanning the user's raw text for
+# a fixed list of English keywords, which broke both across
+# multi-turn Q&A and for any non-English conversation. Defined
+# here, early in the file, since generate_first_message() (further
+# down) needs it the moment the script runs.
+# ============================================================
+
+SCENARIO_TAG_PATTERN = re.compile(
+    r"\[SCENARIO:\s*(avulsion|intrusion_extrusion|concussion_subluxation_lateral|none)\s*\]",
+    re.IGNORECASE
+)
+
+SCENARIO_URGENCY_MAP = {
+    "avulsion": "EMERGENCY",
+    "intrusion_extrusion": "EMERGENCY",
+    "concussion_subluxation_lateral": "URGENT",
+}
+
+
+def extract_scenario_tag(reply_text):
+    """
+    Pulls the [SCENARIO:value] tag out of a reply, strips it from the
+    text shown to the user, and returns (cleaned_text, scenario_or_None).
+    """
+
+    match = SCENARIO_TAG_PATTERN.search(reply_text)
+
+    cleaned = SCENARIO_TAG_PATTERN.sub("", reply_text).rstrip()
+
+    scenario_value = None
+
+    if match:
+        value = match.group(1).lower()
+        if value != "none":
+            scenario_value = value
+
+    return cleaned, scenario_value
+
+
+# ============================================================
 # CSS
 # ============================================================
 
@@ -527,6 +572,35 @@ translated into the selected language where applicable:
 "Would you like tips on how to care for the tooth until you see a dentist?"
 
 Keep responses concise. Do not make them unnecessarily long.
+
+MACHINE-READABLE SCENARIO TAG (required, internal only)
+
+At the very end of every response you send — after both language sections
+when there are two — add exactly one line containing ONLY a machine-readable
+tag in this exact format:
+
+[SCENARIO:value]
+
+Where value is one of:
+
+- avulsion — the tooth was completely knocked out
+- intrusion_extrusion — the tooth was pushed inward or outward
+- concussion_subluxation_lateral — the tooth is loose, moved sideways, or
+  there was an impact/knock without displacement (concussion, subluxation,
+  or lateral luxation)
+- none — not enough information yet to classify
+
+Rules for this tag:
+
+- It must be present on every single response you send, including the very
+  first message of the conversation (use "none" until you have enough
+  information).
+- It must always be in English, written exactly as shown above — never
+  translate it, never explain it, never mention that it exists.
+- It must appear only once, as the very last line of your entire response,
+  with nothing after it and nothing else on that line.
+- This tag is read only by the application to select a helpful video. The
+  patient never sees it and you must never refer to it in your visible text.
 """
 
 
@@ -677,7 +751,11 @@ def generate_first_message(language_name, language_code):
             temperature=0.2
         )
 
-        return response.choices[0].message.content
+        raw_reply = response.choices[0].message.content
+
+        cleaned_reply, _ = extract_scenario_tag(raw_reply)
+
+        return cleaned_reply
 
     except Exception as e:
 
@@ -706,62 +784,6 @@ if not st.session_state.messages:
 # ============================================================
 # SCENARIO DETECTION
 # ============================================================
-
-def detect_scenario(text):
-
-    text_lower = text.lower()
-
-    # AVULSION
-    avulsion_words = [
-        "fallen out", "fell out", "knocked out", "completely out",
-        "came out", "lost the tooth", "tooth is out", "tooth fell"
-    ]
-
-    if any(word in text_lower for word in avulsion_words):
-        return "avulsion", "EMERGENCY"
-
-    # INTRUSION / EXTRUSION
-    intrusion_words = [
-        "pushed inward", "pushed inside", "went inside", "intruded",
-        "intrusion", "tooth is inside", "tooth pushed in"
-    ]
-
-    extrusion_words = [
-        "pushed outward", "pushed out", "coming out", "extruded",
-        "extrusion", "tooth is sticking out"
-    ]
-
-    if any(word in text_lower for word in intrusion_words + extrusion_words):
-        return "intrusion_extrusion", "EMERGENCY"
-
-    # LATERAL LUXATION
-    lateral_words = [
-        "sideways", "side way", "moved sideways", "pushed sideways",
-        "tooth moved to the side", "tooth is sideways"
-    ]
-
-    if any(word in text_lower for word in lateral_words):
-        return "concussion_subluxation_lateral", "URGENT"
-
-    # SUBLUXATION
-    mobile_words = [
-        "loose", "mobile", "moving", "moves", "shaking", "wobbly", "wobbles"
-    ]
-
-    if any(word in text_lower for word in mobile_words):
-        return "concussion_subluxation_lateral", "URGENT"
-
-    # CONCUSSION
-    concussion_words = [
-        "hit", "hit the tooth", "bumped", "impact", "injury",
-        "not mobile", "not loose", "doesn't move", "does not move"
-    ]
-
-    if any(word in text_lower for word in concussion_words):
-        return "concussion_subluxation_lateral", "URGENT"
-
-    return None, None
-
 
 # ============================================================
 # DISPLAY CHAT
@@ -842,27 +864,6 @@ if user_input:
         {"role": "user", "content": user_input}
     )
 
-    # DETECT SCENARIO
-    #
-    # The new conversation flow asks several separate follow-up
-    # questions ("Is it loose?" -> "yes", "Was it pushed inward?" ->
-    # "no") instead of one open question answered in a single message.
-    # Scanning only the newest message misses trigger words that were
-    # given in an earlier turn, so the video never appeared. Scanning
-    # the full accumulated user conversation instead keeps detection
-    # working across multi-turn Q&A.
-    all_user_text = " ".join(
-        message["content"]
-        for message in st.session_state.messages
-        if message["role"] == "user"
-    )
-
-    scenario, urgency = detect_scenario(all_user_text)
-
-    if scenario:
-        st.session_state.scenario = scenario
-        st.session_state.urgency = urgency
-
     # PREPARE GPT MESSAGES
     api_messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -892,7 +893,19 @@ if user_input:
                 temperature=0.2
             )
 
-        reply = response.choices[0].message.content
+        raw_reply = response.choices[0].message.content
+
+        # DETECT SCENARIO
+        #
+        # Parse the hidden [SCENARIO:value] tag GPT was instructed to
+        # append. This works no matter what language the conversation
+        # is in and no matter how many turns it took to gather enough
+        # information, unlike the old English-keyword scan.
+        reply, detected_scenario = extract_scenario_tag(raw_reply)
+
+        if detected_scenario:
+            st.session_state.scenario = detected_scenario
+            st.session_state.urgency = SCENARIO_URGENCY_MAP.get(detected_scenario)
 
     except Exception as e:
 
