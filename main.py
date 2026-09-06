@@ -117,6 +117,21 @@ VIDEO_LIBRARY = {
             "url": "https://www.youtube.com/watch?v=W2pQTN2sLz4",
             "title": "Dental trauma — concussion, subluxation and lateral luxation"
         }
+    },
+
+    # --------------------------------------------------------
+    # FRACTURE - Tooth fractured/chipped, with or without pulp
+    # exposure
+    # --------------------------------------------------------
+    "fracture": {
+        "ta": {
+            "url": "https://youtu.be/MyXNsljFJrc?si=yQNj9hL2BPKcnft0",
+            "title": "பல் உடைந்தால் என்ன செய்ய வேண்டும்?"
+        },
+        "default": {
+            "url": "https://youtu.be/c8TomzO45sw?si=lv_uo3rfrRnlK2oO",
+            "title": "What to do when a tooth is fractured or chipped"
+        }
     }
 }
 
@@ -147,7 +162,7 @@ def get_video_for_scenario(scenario, language_code):
 # ============================================================
 
 SCENARIO_TAG_PATTERN = re.compile(
-    r"\[SCENARIO:\s*(avulsion|intrusion_extrusion|concussion_subluxation_lateral|none)\s*\]",
+    r"\[SCENARIO:\s*(avulsion|intrusion_extrusion|concussion_subluxation_lateral|fracture|none)\s*\]",
     re.IGNORECASE
 )
 
@@ -155,6 +170,7 @@ SCENARIO_URGENCY_MAP = {
     "avulsion": "EMERGENCY",
     "intrusion_extrusion": "EMERGENCY",
     "concussion_subluxation_lateral": "URGENT",
+    "fracture": "URGENT",
 }
 
 
@@ -870,12 +886,18 @@ Determine whether:
 - there is significant pain
 - the tooth structure is substantially broken
 - there is bleeding
+- there is visible pink or red tissue at the fracture site
+  (possible pulp exposure)
 
 If sensitivity or significant fracture is present, recommend prompt
 dental assessment.
 
 For a small enamel chip without pain or other concerning findings,
 recommend a dental appointment for evaluation.
+
+Treat any fracture of the tooth structure — whether or not the pulp
+(the inner nerve tissue) appears exposed — as a fracture scenario
+for guidance purposes.
 
 ============================================================
 17. BLEEDING
@@ -1006,6 +1028,8 @@ Valid tags are:
 
 [SCENARIO:concussion_subluxation_lateral]
 
+[SCENARIO:fracture]
+
 [SCENARIO:none]
 
 Use:
@@ -1035,6 +1059,14 @@ when the injury is consistent with:
 - concussion
 - subluxation
 - lateral luxation
+
+Use:
+
+[SCENARIO:fracture]
+
+when the tooth is fractured, broken, or chipped — whether or not
+there is visible pulp exposure (visible pink or red tissue at the
+fracture site).
 
 The scenario tag must appear exactly once.
 
